@@ -27,7 +27,9 @@ async function saveItem(props, color) {
   await SecureStore.setItemAsync("keys", keys);
   await SecureStore.setItemAsync(key, value);
   props.navigation.navigate("Notes");
+  console.log("xd");
 }
+
 export default class S2 extends Component {
   constructor(props) {
     super(props);
