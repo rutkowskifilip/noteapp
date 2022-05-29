@@ -1,52 +1,53 @@
-import React, { Component, useState } from "react";
+import React, { Component } from "react";
 import * as SecureStore from "expo-secure-store";
 import { Picker } from "@react-native-picker/picker";
-import { View, Text, TextInput, StyleSheet, Button } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Button,
+  Keyboard,
+  TouchableWithoutFeedback,
+} from "react-native";
 import { log } from "react-native-reanimated";
 import { keyboardProps } from "react-native-web/dist/cjs/modules/forwardedProps";
 let title,
-  defaultTitle,
   content,
   keys = "",
+  colors = ["#ff0000", "#00ff00", "#0000ff", "#00FFFF", "#FF00FF", "#808080"],
+  i = 0,
   category,
   exist = false;
 
 export default class AddNote extends Component {
   constructor(props) {
     super(props);
-    this.state = { category: "", categories: [], exist: "" };
-    this.funkcja = null;
+    this.state = {
+      category: "",
+      categories: [],
+    };
   }
-  saveItem = async (color) => {
-    await SecureStore.deleteItemAsync(defaultTitle);
+  saveItem = async () => {
+    // console.log("xd");
     exist = false;
-    this.keysString = await SecureStore.getItemAsync("keys");
-    this.keys = this.keysString.split("_");
-    console.log(this.keys);
+    this.keys = await SecureStore.getItemAsync("keys");
     this.key = title;
-    for (let i = 0; i < this.keys.length; i++) {
-      console.log(this.keys[i], title, defaultTitle);
-      if (title != defaultTitle) {
-        if (this.keys[i] == title) {
+    if (this.keys != null) {
+      this.keysCheck = this.keys.split("_");
+      for (let i = 0; i < this.keysCheck.length; i++) {
+        if (this.keysCheck[i] == this.key) {
           exist = true;
-        } else if (this.keys[i] == defaultTitle) {
-          console.log("xd");
-          this.keys[i] = title;
-          console.log("this.keys[i]: " + this.keys[i]);
         }
       }
     }
-    console.log(this.keys);
-    this.keysString = this.keys.join("_");
-    console.log(this.keysString);
-    if (!exist || title == defaultTitle) {
-      await SecureStore.setItemAsync("keys", this.keysString);
 
-      this.color = color;
+    if (!exist) {
+      keys += "_" + this.key;
+      this.color = colors[i % 6];
+      i++;
       this.content = content;
-      console.log(category);
-      this.category = this.state.category;
-      this.key = title;
+      this.category = category;
       this.d = new Date();
       this.data =
         this.d.getDate() +
@@ -61,22 +62,24 @@ export default class AddNote extends Component {
       this.value =
         this.content + "_" + this.color + "_" + this.category + "_" + this.data;
       // console.log(this.value);
-      console.log(this.value);
+      await SecureStore.setItemAsync("keys", keys);
       await SecureStore.setItemAsync(this.key, this.value);
       this.setState({ exist: "" });
-      console.log(keys);
       this.props.navigation.navigate("Notes");
     } else {
       this.setState({ exist: "Note with this title already exist" });
     }
   };
   getCategories = async () => {
+    console.log(this.state.category);
+
     this.categoriesString = await SecureStore.getItemAsync("categories");
     this.categories = this.categoriesString.split("_");
     this.categories.shift();
-    this.setState({ category: category });
+    this.setState({ category: this.categories[0] });
     this.setState({ categories: this.categories });
-    console.log(this.state.category);
+    category = this.state.category;
+    // console.log(this.state.category);
   };
   componentDidMount = () => {
     this.funkcja = this.props.navigation.addListener("focus", () => {
@@ -87,13 +90,11 @@ export default class AddNote extends Component {
     // ta funkcja wykona się raz podczas uruchomienia ekranu
     this.getCategories();
   };
-  render() {
-    defaultTitle = this.props.route.params.key;
-    title = this.props.route.params.key;
-    content = this.props.route.params.content;
-    category = this.props.route.params.category;
 
-    // console.log(title, content);
+  componentWillUnmount() {
+    this.funkcja();
+  }
+  render() {
     return (
       <View style={styles.all}>
         <Text>{this.state.exist}</Text>
@@ -103,7 +104,6 @@ export default class AddNote extends Component {
             style={styles.element}
             underlineColorAndroid="#000000"
             placeholder="title"
-            defaultValue={this.props.route.params.key}
             onChangeText={(text) => (title = text)}
           />
           <Text style={styles.element}>Content</Text>
@@ -112,30 +112,28 @@ export default class AddNote extends Component {
             underlineColorAndroid="#000000"
             placeholder="content"
             multiline={true}
-            defaultValue={this.props.route.params.content}
             onChangeText={(text) => (content = text)}
           />
           <Text style={styles.element}>Category</Text>
+          <Picker
+            selectedValue={this.state.category}
+            onValueChange={(text) => {
+              this.setState({ category: text });
+              category = text;
+            }}
+            style={styles.picker}
+          >
+            {this.state.categories.map((item, index) => {
+              return <Picker.Item label={item} value={item} key={index} />;
+            })}
+          </Picker>
+          <Button
+            onPress={() => {
+              this.saveItem();
+            }}
+            title="Save"
+          />
         </View>
-
-        <Picker
-          selectedValue={this.state.category}
-          onValueChange={(text) => {
-            this.setState({ category: text });
-            category = text;
-          }}
-          style={styles.picker}
-        >
-          {this.state.categories.map((item, index) => {
-            return <Picker.Item label={item} value={item} key={index} />;
-          })}
-        </Picker>
-        <Button
-          onPress={() => {
-            this.saveItem(this.props.route.params.color);
-          }}
-          title="Save"
-        />
       </View>
     );
   }
@@ -147,13 +145,13 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "column",
     flexWrap: "nowrap",
-    height: 480,
+    height: 360,
     width: "70%",
     marginLeft: "15%",
     marginTop: "5%",
     marginBottom: "0%",
     display: "flex",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     flexDirection: "column",
     alignItems: "center",
   },
@@ -166,8 +164,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   picker: {
-    width: "70%",
+    width: "100%",
     marginLeft: "15%",
-    marginTop: -160,
+    marginTop: -80,
   },
 });
